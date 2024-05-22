@@ -1,0 +1,44 @@
+---
+title: "Trabalho 2 - ME921"
+author: "Ana Julia Cunha e Silva"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F, warning = F, error = F)
+```
+
+```{r bibliotecas}
+library(readxl)
+library(tidyverse)
+library(mclust)
+```
+
+```{r carregando o banco}
+dados <- read_xlsx("dados/all-weeks-globalNETFLIX.xlsx")
+dados$category <- factor(dados$category)
+dados$weekly_rank <- factor(dados$weekly_rank)
+dados$cumulative_weeks_in_top_10 <- factor(dados$cumulative_weeks_in_top_10)
+
+dados1 <- dados %>%
+  select(!c(episode_launch_details,is_staggered_launch, season_title)) %>% drop_na() %>% mutate(titulo_qtd = log(str_width(show_title))) %>% #,                         runtime = log(runtime)) %>% 
+  #fazendo o log no runtime terao alguns valores -inf que vao quebrar o bic, mas o pairs nao parece bom sem o log.
+  group_by(show_title) %>% 
+  filter(weekly_views == max(weekly_views)) %>%
+  ungroup()
+
+```
+log no runtime e no titulo, mais raiz quadrada no weekly_views.
+```{r estudo do banco}
+dados1 %>%
+  mutate(weekly_views = sqrt(weekly_views)) %>% 
+  select(weekly_views, runtime, titulo_qtd) -> dados1
+pairs(dados1)
+
+dados1 %>% mutate(runtime = log(runtime)) %>% pairs()
+
+fitBIC <- mclustBIC(dados1)
+plot(fitBIC)
+```
+
