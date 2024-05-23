@@ -15,30 +15,49 @@ library(tidyverse)
 library(mclust)
 ```
 
-```{r carregando o banco}
+```{r carregando o banco e tratando}
 dados <- read_xlsx("dados/all-weeks-globalNETFLIX.xlsx")
 dados$category <- factor(dados$category)
 dados$weekly_rank <- factor(dados$weekly_rank)
 dados$cumulative_weeks_in_top_10 <- factor(dados$cumulative_weeks_in_top_10)
 
 dados1 <- dados %>%
-  select(!c(episode_launch_details,is_staggered_launch, season_title)) %>% drop_na() %>% mutate(titulo_qtd = log(str_width(show_title))) %>% #,                         runtime = log(runtime)) %>% 
-  #fazendo o log no runtime terao alguns valores -inf que vao quebrar o bic, mas o pairs nao parece bom sem o log.
+  select(!c(episode_launch_details,
+            is_staggered_launch, season_title)) %>%
+  drop_na() %>% 
+  mutate(titulo_qtd = log(str_width(show_title)),
+         runtime = log(runtime)) %>% #fazendo o log no runtime terao alguns valores -inf que vao quebrar o bic, mas o pairs nao parece bom sem o log.
   group_by(show_title) %>% 
   filter(weekly_views == max(weekly_views)) %>%
   ungroup()
 
 ```
 log no runtime e no titulo, mais raiz quadrada no weekly_views.
+
+## Analisando com os outliers
 ```{r estudo do banco}
 dados1 %>%
   mutate(weekly_views = sqrt(weekly_views)) %>% 
   select(weekly_views, runtime, titulo_qtd) -> dados1
+dados1$runtime <- ifelse(dados1$runtime == -Inf, 0, dados1$runtime)
 pairs(dados1)
-
-dados1 %>% mutate(runtime = log(runtime)) %>% pairs()
 
 fitBIC <- mclustBIC(dados1)
 plot(fitBIC)
+fitBIC
+fitICL <- mclustICL(dados1)
+plot(fitICL)
+fitICL
+```
+
+```{r modelagem com outlier}
+model1 <- Mclust(dados1, 4, modelNames = 'EVI')
+plot(model1)
+uncerPlot(model1$z)
+```
+
+## Analise lidando com os outliers
+```{r tratamento de outlier}
+
 ```
 
