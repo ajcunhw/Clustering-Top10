@@ -14,6 +14,10 @@ library(readxl)
 library(tidyverse)
 library(covRobust)
 library(mclust)
+
+#para comparacao de metodos(comparar com kmeans)
+library(factoextra)
+library(cluster)
 ```
 
 ```{r carregando o banco e tratando}
@@ -27,8 +31,7 @@ dados1 <- dados %>%
             is_staggered_launch, season_title)) %>%
   drop_na() %>% 
   mutate(titulo_qtd = log(str_width(show_title)),
-         runtime = log(runtime)) %>% #fazendo o log no runtime terao alguns valores -inf que vao quebrar o bic, mas o pairs nao parece bom sem o log.
-  group_by(show_title) %>% 
+         runtime = log(runtime)) %>% group_by(show_title) %>% 
   filter(weekly_views == max(weekly_views)) %>%
   ungroup()
 
@@ -94,5 +97,29 @@ AINDA NAO ENTENDI O Q ROLA AQUI
 model2 <- Mclust(dados1, G = 4, prior = priorControl(modelNames = "EVI", 
                                                  shrinkage = 0))
 plot(model2)
-
+uncerPlot(model2$z)
 ```
+
+## kmeans
+
+```{r}
+set.seed(236038)
+fviz_nbclust(dados1, kmeans, method = "wss")+
+  labs(title = "", x = "Número de Clusters",
+       y = "Soma dos Quadrados Totais dos Clusters")
+
+set.seed(236038)
+fviz_nbclust(dados1, kmeans, method = "silhouette")+
+  labs(title="", x = "Número de Clusters",
+       y = "Largura Média da Silhueta")
+
+set.seed(236038)
+modelo0 <- pam(dados1, k = 2)
+plot(silhouette(modelo0),
+     main = "", 
+     xlab = "Largura da Silhueta")
+
+fviz_cluster(modelo0, data = dados1)+theme_classic()+
+  labs(title = "")
+```
+
