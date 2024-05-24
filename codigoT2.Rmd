@@ -12,6 +12,7 @@ knitr::opts_chunk$set(echo = F, warning = F, error = F)
 ```{r bibliotecas}
 library(readxl)
 library(tidyverse)
+library(covRobust)
 library(mclust)
 ```
 
@@ -57,7 +58,41 @@ uncerPlot(model1$z)
 ```
 
 ## Analise lidando com os outliers
-```{r tratamento de outlier}
+
+```{r estudo de perfil}
+dados1 %>% mutate(Cluster = factor(model1$classification,
+labels = c("Outliers", "C2", "C1", "C3"))) %>%
+#mutate(Cluster = reorder(Cluster#, Top10, mean
+#                         )) %>%
+pivot_longer(-Cluster, names_to = "Attribute",
+values_to = "Values") %>%
+ggplot(aes(x = Attribute, y = Values, fill = Cluster)) +
+geom_boxplot() + theme_classic() + coord_flip() +
+theme(legend.position = "bottom")+
+  facet_wrap(~Attribute, scale = 'free')
 
 ```
 
+ISSO AQUI é PRA TIRAR RUIDO (DA PRA COMPARAR BIC COM E SEM RESIDUO, DEPOIS OS MODELOS RECOMENDADOS)
+```{r tratamento de outlier}
+nnve.out <- cov.nnve(dados1)
+
+model <- Mclust(dados1,
+                initialization = list(noise = (nnve.out$classification==0)))
+
+#BIC
+fitBIC1 <-  mclustBIC(dados1, initialization = list(noise = (nnve.out$classification == 0)))
+   # UniBIC <- mclustBIC(Uni, initialization = list(noise = (nnve.out$classification == 0)))
+
+plot(fitBIC1)
+plot(fitBIC)
+```
+
+
+AINDA NAO ENTENDI O Q ROLA AQUI
+```{r}
+model2 <- Mclust(dados1, G = 4, prior = priorControl(modelNames = "EVI", 
+                                                 shrinkage = 0))
+plot(model2)
+
+```
