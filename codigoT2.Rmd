@@ -62,8 +62,6 @@ summary(model1)
 uncerPlot(model1$z, ylab = "Incerteza")
 ```
 
-## Analise lidando com os outliers
-
 ```{r estudo de perfil}
 dados1 %>% mutate(Cluster = factor(model1$classification,
 labels = c("C1", "C2", "C3", "C4"#, "C4", "C5"
@@ -76,8 +74,8 @@ theme(legend.position = "bottom")+
   facet_wrap(~Attribute, scale = 'free')+labs(y = "")
 
 ```
-# Tratamento do ruido
 
+# Tratamento do ruido
 ```{r tratamento de outlier}
 nnve.out <- cov.nnve(dados1)
 
@@ -128,6 +126,4 @@ fviz_nbclust(dados1, kmeans, method = "silhouette")+
 modelokm <- pam(dados1, k = 2)
 fviz_cluster(modelokm, data = dadosN0)+theme_classic()+
   labs(title = "")
-
 ```
-
