@@ -29,82 +29,88 @@ dados$cumulative_weeks_in_top_10 <- factor(dados$cumulative_weeks_in_top_10)
 dados1 <- dados %>%
   select(!c(episode_launch_details,
             is_staggered_launch, season_title)) %>%
-  drop_na() %>% 
+  filter(runtime >= 1) %>% 
   mutate(TituloQtd = log(str_width(show_title)),
-         runtime = log(runtime)) %>% group_by(show_title) %>% 
+         runtime = log(runtime)) %>%
+  drop_na() %>% 
+  group_by(show_title) %>% 
   filter(weekly_views == max(weekly_views)) %>%
   ungroup()
 
 ```
-log no runtime e no titulo, mais raiz quadrada no weekly_views.
 
-## Analisando com os outliers
+## Analisando com "ruido"
 ```{r estudo do banco}
-dados1 %>%
+dados1 <- dados1 %>%
   mutate(weekly_views = sqrt(weekly_views)) %>% 
-  select(weekly_views, runtime, TituloQtd) -> dados1
-dados1$runtime <- ifelse(dados1$runtime == -Inf, 0, dados1$runtime)
+  select(weekly_views, runtime, TituloQtd) 
 pairs(dados1)
 
+#BIC
 fitBIC <- mclustBIC(dados1)
-plot(fitBIC)
+plot(fitBIC, xlab = "Número de Clusters", main = "Com Ruído")
 fitBIC
-fitICL <- mclustICL(dados1)
-plot(fitICL)
-fitICL
 ```
 
-```{r modelagem com outlier}
+```{r modelagem com ruido}
 model1 <- Mclust(dados1, 4, modelNames = 'EVI')
-plot(model1)
-0
+plot(model1, what = "classification")
+plot(model1, what = "uncertainty")
+plot(model1, what = "density")
+
 summary(model1)
-uncerPlot(model1$z)
+uncerPlot(model1$z, ylab = "Incerteza")
 ```
 
 ## Analise lidando com os outliers
 
 ```{r estudo de perfil}
 dados1 %>% mutate(Cluster = factor(model1$classification,
-labels = c("Outliers", "C2", "C1", "C3"))) %>%
-#mutate(Cluster = reorder(Cluster#, Top10, mean
-#                         )) %>%
+labels = c("C1", "C2", "C3", "C4"#, "C4", "C5"
+           ))) %>%
 pivot_longer(-Cluster, names_to = "Attribute",
 values_to = "Values") %>%
 ggplot(aes(x = Attribute, y = Values, fill = Cluster)) +
 geom_boxplot() + theme_classic() + coord_flip() +
 theme(legend.position = "bottom")+
-  facet_wrap(~Attribute, scale = 'free')
+  facet_wrap(~Attribute, scale = 'free')+labs(y = "")
 
 ```
+# Tratamento do ruido
 
-ISSO AQUI é PRA TIRAR RUIDO (DA PRA COMPARAR BIC COM E SEM RESIDUO, DEPOIS OS MODELOS RECOMENDADOS)
 ```{r tratamento de outlier}
 nnve.out <- cov.nnve(dados1)
 
 #BIC
 fitBIC1 <-  mclustBIC(dados1, initialization = list(noise = (nnve.out$classification == 0)))
-   # UniBIC <- mclustBIC(Uni, initialization = list(noise = (nnve.out$classification == 0)))
 
-plot(fitBIC1)
-plot(fitBIC)
+layout(matrix(1:2, ncol = 2)); plot(fitBIC, xlab = "Número de Clusters", ylab = "BIC (com ruído)"); plot(fitBIC1, xlab= "Número de Clusters", ylab = "BIC (com redução de ruído)")
 
+#Modelo com reducao de ruido
 model <- Mclust(dados1,
                 initialization = list(noise = (nnve.out$classification==0)))
 summary(model)
+uncerPlot(model$z)
 
+plot(model, what = "classification")
+plot(model, what = "uncertainty")
+plot(model, what = "density")
 ```
 
+```{r perfil sem ruido}
 
-AINDA NAO ENTENDI O Q ROLA AQUI
-```{r}
-model2 <- Mclust(dados1, G = 4, prior = priorControl(modelNames = "EVI", 
-                                                 shrinkage = 0))
-plot(model2)
-0
-summary(model2)
-uncerPlot(model2$z)
+dados1 %>% mutate(Cluster = factor(model$classification,
+labels = c("Outliers", "C1", "C2", "C3", "C4", "C5"
+           ))) %>%
+pivot_longer(-Cluster, names_to = "Attribute",
+  values_to = "Values") %>%
+  ggplot(aes(x = Attribute, y = Values, fill = Cluster)) +
+  geom_boxplot() + theme_bw() + coord_flip() +
+  theme(legend.position = "bottom")+
+  facet_wrap(~Attribute, scale = 'free')+
+  labs(x = "")
 ```
+
 
 ## kmeans
 
@@ -119,8 +125,9 @@ fviz_nbclust(dados1, kmeans, method = "silhouette")+
   labs(title="", x = "Número de Clusters",
        y = "Largura Média da Silhueta")
 
-set.seed(236038)
-fviz_cluster(modelo0, data = dados1)+theme_classic()+
+modelokm <- pam(dados1, k = 2)
+fviz_cluster(modelokm, data = dadosN0)+theme_classic()+
   labs(title = "")
+
 ```
 
